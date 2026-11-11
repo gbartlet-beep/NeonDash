@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080e20">
+<title>Neon Dash — Mini Arcade</title>
+<style>
+:root {--blue:#64f8f2;--red:#d41010}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0}
+body{background:#080e20;color:#eef5ff;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;overscroll-behavior:none}
+button{cursor:pointer;font:inherit}
+#gamepage{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:14px;background:radial-gradient(circle at 30% 12%,#182d4d,#080d20 68%)}
+#shell{width:min(1000px,100%);background:#0b132c;border:1px solid #34446c;box-shadow:0 20px 60px #0008;overflow:hidden;border-radius:14px}
+#gamebar{display:flex;justify-content:space-between;align-items:center;padding:15px 19px;border-bottom:1px solid #2b3b64;font:700 11px Consolas,monospace;letter-spacing:1.4px}
+.brand{font-family:system-ui;font-weight:900;letter-spacing:3px;font-size:16px}.brand b{color:var(--blue)}.online{color:#9aabc8}.online::before{content:'●';color:#22e3a2;margin-right:7px}
+#play{position:relative;aspect-ratio:16/9;overflow:hidden;background:#080e23}
+#game{width:100%;height:100%;display:block;touch-action:none}
+#hud{position:absolute;top:14px;right:16px;left:16px;display:flex;justify-content:space-between;pointer-events:none;font:800 13px Consolas,monospace;letter-spacing:1px;text-shadow:0 2px 7px #000}
+#hud strong{color:#53fff1}
+#intro{position:absolute;inset:0;background:radial-gradient(circle at center,#142856cb,#060b19eb 75%);display:flex;align-items:center;justify-content:center;text-align:center;padding:22px}
+.intro-content{max-width:550px}.eyebrow{font:800 11px Consolas,monospace;color:#66e6e8;letter-spacing:4px}
+h1{font-size:clamp(55px,10vw,110px);letter-spacing:-.09em;line-height:.87;margin:22px 0;text-shadow:0 0 35px #3c76f355}
+h1 span{display:block;color:#47e9f3}#intro p{font-size:clamp(13px,1.8vw,16px);line-height:1.7;color:#b2bedc;margin:0 auto 24px}
+#start{border:0;background:linear-gradient(100deg,#4bfce4,#75b1ff);padding:15px 35px;font-weight:900;color:#09182b;border-radius:8px;letter-spacing:1px}
+#start:hover{filter:brightness(1.1)}
+#gamefoot{padding:13px 19px;color:#8798bd;font:11px Consolas,monospace}
+#touch{position:absolute;bottom:13px;right:15px;display:none;gap:7px}#touch button{width:57px;height:57px;border-radius:6px;color:#dff;border:1px solid #3a8cbd;background:#152951d9;font-size:26px;touch-action:none}
+#freeze{position:fixed;inset:0;z-index:45;display:none;cursor:wait;background:transparent}#freeze.active{display:block}
+#artifact{position:fixed;inset:0;z-index:50;width:100%;height:100%;display:none;pointer-events:all;background:#06080f;image-rendering:pixelated}
+#artifact.active{display:block}
+/* Flat, deliberately utilitarian faux scanner: nothing here scans or downloads anything. */
+#scan{display:none;position:fixed;inset:0;z-index:60;background:#ececec;color:#151515;overflow:auto;font-family:Tahoma,'Segoe UI',Arial,sans-serif;font-size:12px;line-height:1.35}
+#scan.active{display:block}
+.winbar{height:31px;display:flex;align-items:center;gap:7px;padding:0 10px;background:#b8c4d3;color:#142135;border-bottom:1px solid #7e8b9c;font-size:12px}
+.winlogo{display:inline-grid;place-items:center;width:16px;height:16px;color:white;background:#53667e;font-size:11px;font-weight:bold}.winbar strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.windowicons{display:inline-flex;align-items:center;gap:3px;margin-left:auto}.windowicons span{width:24px;height:20px;display:grid;place-items:center;border:1px solid #8796a8;background:#d6dfeb;color:#35475e;font:14px/1 Tahoma,Arial,sans-serif}
+.menubar{height:32px;border-bottom:1px solid #aaa;background:#d7d7d7;display:flex;align-items:center;gap:19px;padding:0 12px;color:#252525;font-size:11px}.menubar .mock-exit{margin-left:auto;min-height:22px}
+.scanbody{padding:16px 22px 12px;max-width:1250px;margin:0 auto}
+.scan-title{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #b3b3b3;padding-bottom:13px;margin-bottom:13px}
+.scan-title h2{font-size:21px;margin:0 0 5px;font-weight:600;letter-spacing:-.4px}.scan-title .sub{font-size:11px;color:#535353}
+.scan-alert{display:flex;gap:10px;align-items:center;padding:10px 13px;background:#fff0c4;border:1px solid #c5aa62;margin-bottom:12px;color:#4b301a}
+.scan-alert strong{color:#9a1515}.scan-alert .warnsign{font-size:19px;color:#a92016}
+.scangrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,.78fr);gap:12px}
+.panel{border:1px solid #a1a1a1;background:#fafafa;box-shadow:inset 1px 1px #fff;min-width:0}
+.panel-title{background:#ddd;border-bottom:1px solid #aaa;padding:6px 9px;font-weight:bold;color:#242424}
+.panel-content{padding:11px 12px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.metric{border-right:1px solid #bbb;padding:1px 8px 3px 1px;min-width:0}.metric:last-child{border:0}.metric .count{display:block;font-weight:700;font-size:22px;color:#2b2b2b;white-space:nowrap}.metric .red{color:#bf1515}.metric small{color:#626262;display:block;margin-top:2px;font-size:10px}
+.progresscap{display:flex;justify-content:space-between;gap:8px;margin:7px 0 5px}.progresscap b{font-weight:normal}
+.progressbox{height:18px;position:relative;background:#fff;border:1px solid #8b8b8b;padding:2px;box-shadow:inset 1px 1px #c4c4c4}
+.progressbar{width:0%;height:100%;background:repeating-linear-gradient(90deg,#3971a5 0 14px,#6696c1 14px 16px);transition:width .13s linear}
+.scanstatus{display:flex;justify-content:space-between;gap:15px;font-size:11px;margin:7px 0 12px;color:#444}
+.data-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}.data-table th{text-align:left;background:#e5e5e5;border:1px solid #ccc;padding:6px 6px;font-weight:600}.data-table td{border:1px solid #ddd;padding:7px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.data-table th:nth-child(1){width:49%}.data-table th:nth-child(2){width:22%}.data-table th:nth-child(3){width:29%}
+.data-table tr:nth-child(even) td{background:#f1f1f1}.problem{color:#ae1616;font-weight:700}.pending{color:#77582a}.muted{color:#777}
+.infobox{font-size:11px;line-height:1.8}.infobox .line{display:flex;gap:5px;justify-content:space-between;border-bottom:1px dotted #ccc;padding:4px 0}.infobox b{font-weight:normal;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.infobox .alerttext{color:#b10b0b;font-weight:700}
+.activity{font-family:Consolas,'Courier New',monospace;font-size:10.5px;line-height:1.45;padding:10px;background:#fff;min-height:140px;overflow:hidden;border-top:1px solid #ddd;color:#333}
+.activity div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.activity .error{color:#ae1717}.activity .warn{color:#a06d16}.activity .ok{color:#155f29}
+.bottompanels{margin-top:12px;display:grid;grid-template-columns:1fr;gap:12px}.statusbar{background:#d7d7d7;border-top:1px solid #aaa;min-height:27px;padding:6px 12px;color:#555;font-size:10px;margin-top:14px}
+#crash{position:fixed;inset:0;z-index:70;display:none;background:#c9c9c9;color:#080808;font:14px Consolas,'Courier New',monospace;padding:clamp(20px,5vw,80px);overflow:auto}
+#crash.active{display:flex;align-items:center;justify-content:center}
+#crash .errorwindow{max-width:640px;width:100%;background:#eee;border:2px outset #fff;box-shadow:2px 2px 0 #555}
+.errorbar{background:#173d71;color:white;padding:7px 9px;font:700 13px Tahoma,Arial,sans-serif}.errorinner{display:flex;gap:20px;padding:26px 20px 28px;line-height:1.65;font-family:Tahoma,Arial,sans-serif}.erroricon{font:bold 35px Tahoma,Arial;color:#bb1f1f}.errorinner p{margin:0 0 9px}.errorinner code{font:12px Consolas,monospace;color:#333}
+#blackout{position:fixed;z-index:80;inset:0;background:#000;display:none;touch-action:none;user-select:none;-webkit-user-select:none}
+#blackout.active{display:block}
+#explain{position:fixed;z-index:90;inset:0;display:none;align-items:center;justify-content:center;background:#141820;color:#f3f5fa;text-align:center;padding:25px;font:15px/1.7 system-ui,Arial,sans-serif}
+#explain.active{display:flex}#explain .exinner{max-width:480px}#explain h3{font-size:24px;margin:0 0 14px}#explain p{color:#ccd2de}#explain button{padding:10px 20px;background:#fff;color:#111;border:0;font-weight:bold;margin-top:12px}
+@media(max-width:680px){#gamepage{padding:0}#shell{width:100%;min-height:100dvh;border:0;border-radius:0;box-shadow:none;display:flex;flex-direction:column}#play{aspect-ratio:auto;flex:1;min-height:0}#touch{display:flex}#gamefoot{padding:11px 15px}.scanbody{padding:10px 9px 5px}.scan-title h2{font-size:17px}.scangrid{grid-template-columns:1fr;gap:8px}.panel-content{padding:8px}.metrics{gap:4px}.metric .count{font-size:17px}.metric small{font-size:9px}.data-table{font-size:10px}.data-table td{padding:5px 4px}.scan-title{padding-bottom:8px;margin-bottom:8px}.scan-alert{padding:7px 8px;margin-bottom:8px}.bottompanels{margin-top:8px}.activity{min-height:102px;max-height:130px;overflow:hidden}}
+@media(prefers-reduced-motion:reduce){.progressbar{transition:none}}
+
+/* V6: freeze only webpage interactions; system/browser controls remain free. */
+html.simulated-freeze {
+  overflow: hidden;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.simulated-freeze #gamepage { pointer-events: none; }
+.simulated-freeze #scan,
+.simulated-freeze #mobilescan,
+.simulated-freeze #crash,
+.simulated-freeze #mobilecrash,
+.simulated-freeze #maccrash,
+.simulated-freeze #blackout {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+/* A visual part of the mock scanner, not a real browser fullscreen control. */
+.mock-exit {
+  flex-shrink: 0;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 8px;
+  min-height: 23px;
+  background: #dedede;
+  border: 1px solid #999;
+  box-shadow: inset 1px 1px #fff, inset -1px -1px #bbb;
+  color: #2a2a2a;
+  font: 11px/1.2 Tahoma, 'Segoe UI', Arial, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  cursor: default;
+}
+.mock-exit-phone {
+  background: #f7f7f9;
+  border: 1px solid #cbd0d7;
+  box-shadow: 0 1px 1px #00000006;
+  border-radius: 5px;
+  color: #454d59;
+  min-height: 30px;
+  padding: 6px 9px;
+  font: 600 11px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.phone-topline {display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:19px;}
+.phone-topline .phone-kicker {margin:0;}
+
+/* Fullscreen gate. Real browser/OS exits stay available. */
+#fullscreenTip {font:11px/1.6 Consolas,monospace; color:#91a9bf; margin-top:12px; min-height:18px}
+:fullscreen #gamepage {min-height:100dvh;padding:0;background:#070c1c}
+:fullscreen #shell {width:100%;height:100dvh;max-width:none;border-radius:0;display:flex;flex-direction:column}
+:fullscreen #play {flex:1;min-height:0;aspect-ratio:auto}
+/* During the simulated stall, the transparent effect layer must not intercept touch controls. */
+#freeze, #freeze.active {pointer-events:none;cursor:default}
+.touch-ui #touch {display:flex}
+.no-touch-ui #touch {display:none}
+/* A brief real-time catch-up burst after the intentionally choppy 2 FPS sequence. */
+#mobilescan {display:none;position:fixed;inset:0;z-index:61;overflow-y:auto;overflow-x:hidden;background:#f1f2f5;color:#1b1d23;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;flex-direction:column;font-size:13px;line-height:1.35}
+.phone-ui #scan.active {display:none}
+.phone-ui #mobilescan.active {display:flex}
+.phone-status{min-height:38px;flex-shrink:0;background:#f1f2f5;display:flex;align-items:center;justify-content:space-between;padding:10px 25px 3px;font-size:13px;font-weight:700;letter-spacing:.2px}
+.phone-indicators{font-size:13px;color:#111}
+.phone-screen{width:100%;max-width:600px;margin:0 auto;flex:1;padding:22px 16px 24px}
+.phone-kicker{color:#6c727d;letter-spacing:1.5px;font:700 10px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;margin-bottom:19px}
+.phone-heading{display:flex;align-items:center;gap:12px;margin:0 0 20px}.phone-symbol{width:43px;height:43px;display:grid;place-items:center;background:#a52424;color:white;font-size:28px;font-weight:700;border-radius:50%;flex-shrink:0}
+.phone-heading h2{font-size:24px;line-height:1.1;letter-spacing:-.65px;margin:0 0 4px;font-weight:650}.phone-heading p{font-size:12px;margin:0;color:#6b717b;line-height:1.3}
+.phone-alert{background:#fff7f4;border:1px solid #e2aea4;border-left:4px solid #ae2d23;padding:12px 13px;margin-bottom:14px;display:flex;flex-direction:column;gap:5px}.phone-alert b{font-size:13px;color:#8d1714}.phone-alert span{font-size:12px;line-height:1.35;color:#5f3935}
+.phone-card{background:#fff;border:1px solid #dddfe4;border-radius:8px;padding:13px 14px;margin:0 0 12px;box-shadow:0 1px 2px #00000008}
+.phone-card-title{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:650;margin-bottom:13px}.phone-card-title small{font-size:10px;color:#999;font-weight:600;letter-spacing:.6px}
+.phone-live{font-size:10px;color:#ad261d;font-weight:700;letter-spacing:.5px}
+.phone-progress-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}.phone-progress-head strong{font-size:31px;font-weight:650;line-height:1}.phone-progress-head span{font-size:12px;color:#68707b}
+.phone-track{width:100%;height:8px;border-radius:10px;background:#e4e7ec;overflow:hidden}.phone-track>div{width:0%;height:100%;background:#b63b33;transition:width .16s linear}
+.phone-subrow{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:#5b616c;margin:10px 0 12px}
+.phone-filename{font:11px/1.35 Consolas,"SFMono-Regular",monospace;word-break:break-all;color:#454e5c;background:#f5f5f6;border:1px solid #e5e5e5;padding:8px}
+.phone-detail{display:flex;justify-content:space-between;gap:15px;padding:9px 0;border-top:1px solid #eee;font-size:12px}.phone-detail span{color:#757b84}.phone-detail b{text-align:right;font-weight:600;color:#414854;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.phone-detail b.phone-danger{color:#b02a22}
+.phone-events{padding-bottom:10px}.phone-log{font-family:"SFMono-Regular",Consolas,monospace;color:#515b67;font-size:10.5px;line-height:1.65;min-height:95px;max-height:150px;overflow:hidden}.phone-log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid #f4f4f4;padding:2px 0}.phone-log .error{color:#ae2620}.phone-log .warn{color:#915d19}
+.phone-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#696f77;font-size:11px;margin:10px 1px}.phone-spinner{width:14px;height:14px;flex-shrink:0;border-radius:50%;border:2px solid #c6cbd4;border-top-color:#6b7785;animation:phoneturn 1.15s linear infinite}
+@keyframes phoneturn{to{transform:rotate(360deg)}}
+.phone-home-indicator{width:108px;height:4px;border-radius:9px;background:#23252a;margin:4px auto 8px;flex-shrink:0}
+/* V8 phone-native-looking error surface. This is just HTML, not an OS dialog.
+   Distinct from the retro desktop exception window. Never steals OS gestures. */
+#mobilecrash{display:none;position:fixed;inset:0;z-index:72;overflow:hidden;color:#f6f6fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:#141924}
+.phone-ui #crash.active{display:none}.phone-ui #mobilecrash.active{display:flex;flex-direction:column}
+.crash-phone-status{height:52px;display:flex;align-items:center;justify-content:space-between;padding:12px 26px 8px;font-size:14px;font-weight:650;position:relative;z-index:2;color:#f8fbff;flex-shrink:0}
+.crash-phone-status span:last-child{letter-spacing:1px;font-size:12px}
+.crash-phone-underlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 49% 44%,#243457 0%,#101626 62%,#080b12 100%);color:#fff}
+.crash-phone-underlay .ghost-brand{font:bold 26px/1 system-ui,sans-serif;letter-spacing:4px;color:#b7edff;filter:blur(2px);opacity:.55}
+.crash-phone-underlay .ghost-sub{font:12px/1.3 ui-monospace,monospace;letter-spacing:2px;color:#a1aec6;margin-top:18px;filter:blur(3px);opacity:.4}
+.crash-phone-veil{position:absolute;inset:0;background:rgba(3,6,16,.57);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.mobileerror{position:relative;z-index:3;align-self:center;margin:auto 22px;width:min(calc(100% - 44px),360px);background:#f5f5fa;color:#20212a;padding:23px 22px 0;text-align:left;box-shadow:0 22px 55px #0008;border-radius:25px;overflow:hidden}
+.mobileerroricon{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#243d70,#11182c);margin-bottom:17px;color:#e9fbff;display:grid;place-items:center;font:700 19px system-ui,sans-serif}
+.mobileerror strong{font-size:20px;letter-spacing:-.35px;font-weight:700;display:block;line-height:1.25}
+.mobileerror p{font-size:14px;color:#626470;line-height:1.5;margin:10px 0 18px}
+.mobileerror small{font:11px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;color:#848592;display:block;margin-bottom:18px}
+.mobileerrorbottom{border-top:1px solid #dedee5;padding:17px 0 19px;color:#696e7c;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mobileerrorbottom:after{content:'';width:13px;height:13px;border:2px solid #aab0ba;border-top-color:#61748a;border-radius:50%;display:block;animation:phoneturn 1.1s linear infinite}
+.crash-phone-home{height:4px;width:115px;border-radius:9px;background:#f6f6f8;position:absolute;z-index:4;bottom:10px;left:50%;transform:translateX(-50%)}
+.phone-os-ios .mobileerror{background:rgba(240,240,247,.96);border-radius:15px;text-align:center;padding:19px 19px 0}
+.phone-os-ios .mobileerroricon{display:none}.phone-os-ios .mobileerror strong{font-size:17px;letter-spacing:-.2px}.phone-os-ios .mobileerror p{font-size:13px;margin:8px 0 12px}.phone-os-ios .mobileerror small{font-size:10px;margin-bottom:15px}.phone-os-ios .mobileerrorbottom{justify-content:center;color:#596f98;font-weight:500;padding:14px 0 15px}
+.phone-os-ios .mobileerrorbottom:after{display:none}
+@media(max-width:360px){.mobileerror{margin-inline:15px;width:calc(100% - 30px)}.crash-phone-status{padding-left:22px;padding-right:22px}}
+@media(prefers-reduced-motion:reduce){.mobileerrorbottom:after{animation:none}}
+@media(max-width:360px){.phone-screen{padding:15px 12px}.phone-heading h2{font-size:21px}.phone-card{padding:12px}.phone-status{padding-inline:20px}}
+@media(prefers-reduced-motion: reduce){.phone-spinner{animation:none}.phone-track>div{transition:none}}
+
+/* V9 desktop-specific diagnostic shells. Mobile keeps its Android/iOS surfaces. */
+.desktop-os-windows #crash{background:linear-gradient(155deg,#dce9f4 0%,#dae3f2 65%,#b5c7d8 100%);font-family:'Segoe UI',Arial,sans-serif;color:#1f2630}
+.desktop-os-windows #crash .errorwindow{max-width:540px;background:#fff;border:1px solid #dce0e5;border-radius:11px;box-shadow:0 25px 64px #17253a35;overflow:hidden}
+.desktop-os-windows #crash .errorbar{padding:14px 18px;background:#f5f7f9;color:#343d49;border-bottom:1px solid #e5e6e8;font:600 12px/1.2 'Segoe UI',Arial,sans-serif}
+.desktop-os-windows #crash .errorinner{padding:27px 24px 28px;font:13px/1.6 'Segoe UI',Arial,sans-serif;gap:18px}
+.desktop-os-windows #crash .erroricon{font:700 23px/1 system-ui,sans-serif;width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;background:#c72c3b;color:white;border-radius:50%}
+.desktop-os-windows #crash .errorinner strong{font-size:16px;font-weight:650}
+.desktop-os-windows #crash .errorinner code{font-size:11px;color:#616875}
+.desktop-os-windows #scan{font-family:'Segoe UI',Arial,sans-serif}
+.desktop-os-windows #scan .winbar{background:#e2eaf3}
+.desktop-os-windows #scan .panel-title{background:#e0e6ec}
+
+.desktop-os-mac #scan{background:#eceef1;color:#23252b;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif}
+.desktop-os-mac #scan .winbar{height:44px;justify-content:center;position:relative;padding:0 100px;background:linear-gradient(#f6f6f8,#e7e8eb);border-bottom:1px solid #babec6;color:#40454d}
+.desktop-os-mac #scan .winbar strong{flex:0 1 auto;font-size:12px;font-weight:600;text-align:center;letter-spacing:-.1px}
+.desktop-os-mac #scan .winlogo{position:absolute;left:16px;top:16px;width:12px;height:12px;border-radius:50%;background:#fc615d;border:1px solid #e14947;color:transparent;font-size:0;box-shadow:20px 0 0 #f5bf4f,40px 0 0 #55c95b}
+.desktop-os-mac #scan .windowicons{display:none}
+.desktop-os-mac #scan .menubar{height:36px;background:#fafafa;border-bottom:1px solid #c9cbd0;color:#50545c;font-size:12px;padding-inline:20px}
+.desktop-os-mac #scan .scanbody{max-width:1210px}
+.desktop-os-mac #scan .scan-title h2{font-size:21px;font-weight:600;letter-spacing:-.65px}
+.desktop-os-mac #scan .panel{background:#fff;border:1px solid #ced1d8;box-shadow:0 1px 2px #15243b0c;border-radius:7px;overflow:hidden}
+.desktop-os-mac #scan .panel-title{background:#f3f4f7;border-bottom:1px solid #dddfe5;color:#555b65;font-weight:600}
+.desktop-os-mac #scan .scan-alert{background:#fff4e2;border:1px solid #ecd5a2;border-radius:7px}
+.desktop-os-mac #scan .progressbox{border-radius:5px;overflow:hidden;height:16px;background:#edeff2;border:1px solid #d1d3d9;box-shadow:none}
+.desktop-os-mac #scan .progressbar{background:repeating-linear-gradient(90deg,#639fd2 0 15px,#8bb7df 15px 17px)}
+.desktop-os-mac #scan .statusbar{background:#e4e7ec;border-top:1px solid #ced1d8}
+.desktop-os-mac #scan .mock-exit{background:#f1f1f3;border:1px solid #c7cbd0;border-radius:5px;color:#5c626b}
+
+#maccrash{display:none;position:fixed;inset:0;z-index:71;align-items:center;justify-content:center;padding:24px;color:#202124;background:linear-gradient(160deg,#1e2b42,#415c72 55%,#1e303f);font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif}
+.desktop-os-mac #crash.active{display:none}
+.desktop-os-mac #maccrash.active{display:flex}
+.mac-error-dialog{width:min(100%,478px);padding:28px 27px 22px;background:rgba(247,247,249,.97);border:1px solid #ffffffad;border-radius:14px;box-shadow:0 26px 70px #0006;display:flex;gap:20px;align-items:flex-start}
+.mac-error-app-icon{height:62px;width:62px;flex:0 0 62px;border-radius:14px;background:linear-gradient(135deg,#315aa0,#0b1834);border:1px solid #4a6689;display:grid;place-items:center;font-size:31px;color:#79fff0;text-shadow:0 0 12px #81f9ff80}
+.mac-error-main{flex:1;min-width:0}
+.mac-error-main h2{font-size:15px;font-weight:700;line-height:1.35;margin:0 0 11px;color:#24242a}
+.mac-error-main p{font-size:12.5px;line-height:1.5;color:#4b4b55;margin:0 0 13px}
+.mac-error-main .mac-error-meta{font-size:11px;color:#7a7c85;margin-top:6px}
+.mac-error-buttons{margin-top:23px;display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.mac-error-buttons span{border:1px solid #c7c9d1;padding:6px 15px;border-radius:6px;background:#fff;font-size:12px;font-weight:600;min-width:66px;text-align:center;color:#42434b;box-shadow:0 1px 1px #0001}
+.mac-error-buttons span:last-child{background:#287df0;color:#fff;border-color:#287df0}
+@media(max-width:530px){.mac-error-dialog{padding:21px 17px;gap:12px}.mac-error-app-icon{width:47px;height:47px;flex-basis:47px;font-size:23px}.mac-error-buttons span{padding:5px 9px}}
+
+</style>
+</head>
+<body>
+<div id="gamepage">
+  <main id="shell">
+    <header id="gamebar"><span class="brand">NEON<b>✦</b>DASH</span><span class="online">SERVER ONLINE</span></header>
+    <section id="play">
+      <canvas id="game" width="960" height="540" aria-label="Space arcade game"></canvas>
+      <div id="hud"><span>SCORE <strong id="score">0000</strong></span><span>SHIELDS <strong id="shields">♥ ♥ ♥</strong></span><span>TIME <strong id="clock">01</strong></span></div>
+      <div id="touch"><button type="button" id="up" aria-label="Move up">↑</button><button type="button" id="down" aria-label="Move down">↓</button></div>
+      <div id="intro"><div class="intro-content"><div class="eyebrow">A FREE MINI ARCADE CHALLENGE</div><h1>NEON<span>DASH.</span></h1><p id="introInstructions">Collect the gold sparks. Dodge the red asteroids. Use the ↑ / ↓ or W / S keys to fly and beat your high score.</p><button id="start" type="button">⛶ ENTER FULLSCREEN</button><div id="fullscreenTip" aria-live="polite">Fullscreen arcade mode recommended · 🔊 Sound on</div></div></div>
+    </section>
+    <footer id="gamefoot">↑ ↓ OR W / S TO FLY · COLLECT ✦ · AVOID ◆</footer>
+  </main>
+</div>
+<div id="freeze" aria-hidden="true"></div>
+<canvas id="artifact" aria-hidden="true"></canvas>
+<section id="scan" aria-label="Simulated diagnostic scanner" aria-live="off">
+  <div class="winbar"><span class="winlogo">▦</span><strong>Runtime Diagnostic Utility — Scan Results</strong><span class="windowicons" aria-hidden="true"><span>−</span><span>□</span></span></div>
+  <div class="menubar"><span>File</span><span>View</span><span>Scan</span><span>Report</span><span>Help</span><span class="mock-exit" aria-hidden="true">Exit Fullscreen</span></div>
+  <div class="scanbody">
+    <div class="scan-title"><div><h2>System inspection in progress</h2><div class="sub">Diagnostic session: RD-60217 / renderer exception 0xc0000005</div></div><div style="font-size:11px;color:#5d5d5d;text-align:right">Last updated: <span id="now">--:--:--</span><div style="color:#aa2222;margin-top:5px" id="state">Scanning active network streams...</div></div></div>
+    <div class="scan-alert"><span class="warnsign">⚠</span><div><strong>Unrecognized incoming objects detected.</strong><br><span id="alertCaption">Scan initiated after an unexpected application failure. Inspecting queued transfers.</span></div></div>
+    <div class="scangrid">
+      <div class="panel"><div class="panel-title">Scan summary</div><div class="panel-content">
+        <div class="metrics"><div class="metric"><span class="count" id="scanned">00042</span><small>Objects inspected</small></div><div class="metric"><span class="count red" id="detected">0</span><small>Suspected threats</small></div><div class="metric"><span class="count" id="received">0.0 MB</span><small>Incoming data</small></div><div class="metric"><span class="count" id="rate">0 KB/s</span><small>Transfer rate</small></div></div>
+        <div class="progresscap"><b id="stage">Checking local session...</b><b id="percent">0%</b></div>
+        <div class="progressbox"><div class="progressbar" id="progress"></div></div>
+        <div class="scanstatus"><span id="filename">Checking process: arcade_renderer</span><span id="eta">Remaining: estimating...</span></div>
+        <div class="panel-title" style="margin:0 -12px;border-top:1px solid #bbb">Detected / queued objects</div>
+        <table class="data-table"><thead><tr><th>Object / file</th><th>Type</th><th>Status</th></tr></thead><tbody>
+          <tr><td>cache_helper_64.dat</td><td>Unverified</td><td id="f0" class="muted">Waiting</td></tr>
+          <tr><td>netbridge_driver.tmp</td><td>Trojan.Agent</td><td id="f1" class="muted">Waiting</td></tr>
+          <tr><td>svchost_update_x86.bin</td><td>Backdoor</td><td id="f2" class="muted">Waiting</td></tr>
+          <tr><td>cfg_sync_0221.dll</td><td>Trojan.Downloader</td><td id="f3" class="muted">Waiting</td></tr>
+          <tr><td>service_helper_27.tmp</td><td>Suspicious</td><td id="f4" class="muted">Waiting</td></tr>
+          <tr><td>remote_exec_client.bin</td><td>Unverified</td><td id="f5" class="muted">Waiting</td></tr>
+        </tbody></table>
+      </div></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="panel"><div class="panel-title">Connection / process details</div><div class="panel-content infobox">
+          <div class="line"><span>Scan mode:</span><b>Background inspection</b></div>
+          <div class="line"><span>Session state:</span><b id="session">Connected</b></div>
+          <div class="line"><span>Remote host:</span><b>198.51.100.42:443</b></div>
+          <div class="line"><span>Transferred:</span><b id="transfer">0 of 87.4 MB</b></div>
+          <div class="line"><span>Active threads:</span><b id="threads">4</b></div>
+          <div class="line"><span>Blocked items:</span><b id="blocked">0</b></div>
+          <div class="line"><span>Service:</span><b id="service" class="alerttext">Verification failed</b></div>
+        </div></div>
+        <div class="panel"><div class="panel-title">Live status</div><div class="panel-content infobox"><div id="note">Pending network response...</div><div style="border-top:1px solid #ddd;margin-top:12px;padding-top:10px;color:#8c1111" id="note2">This process is not responding to requests.</div></div></div>
+      </div>
+    </div>
+    <div class="bottompanels"><div class="panel"><div class="panel-title">Event log <span id="eventcount" style="font-weight:normal;color:#666;float:right">0 entries</span></div><div id="activity" class="activity"></div></div></div>
+  </div>
+  <div class="statusbar">Runtime Diagnostic Utility 2.3.4 &nbsp; | &nbsp; Event queue active &nbsp; | &nbsp; ERR: RD-0xC0000005</div>
+</section>
+
+<!-- Independent portrait-phone diagnostic view. All values are fictional and local. -->
+<section id="mobilescan" aria-label="Simulated mobile device diagnostics">
+  <div class="phone-status"><span id="phoneNow">9:41</span><span class="phone-indicators" aria-hidden="true">▂▄▆ &nbsp;◉ &nbsp;▰</span></div>
+  <div class="phone-screen">
+    <div class="phone-topline"><div class="phone-kicker">DEVICE DIAGNOSTICS</div><span class="mock-exit mock-exit-phone" aria-hidden="true">Exit Fullscreen</span></div>
+    <div class="phone-heading"><span class="phone-symbol">!</span><div><h2>Security check</h2><p>Checking data received during the app failure</p></div></div>
+    <div class="phone-alert"><b>Unknown incoming data detected</b><span>A background transfer is still active. The request to stop it did not complete.</span></div>
+    <div class="phone-card phone-progress-card"><div class="phone-card-title">Transfer inspection <span class="phone-live">● ACTIVE</span></div>
+      <div class="phone-progress-head"><strong id="phonePct">0%</strong><span id="phoneReceived">0.0 / 87.4 MB</span></div>
+      <div class="phone-track"><div id="phoneProgress"></div></div>
+      <div class="phone-subrow"><span id="phoneRate">0 KB/s</span><span id="phoneCount">0 objects flagged</span></div>
+      <div class="phone-filename" id="phoneFilename">Connecting to diagnostic session...</div>
+    </div>
+    <div class="phone-card"><div class="phone-card-title">Device activity</div>
+      <div class="phone-detail"><span>Connection</span><b id="phoneConn">Checking</b></div>
+      <div class="phone-detail"><span>Inspected objects</span><b id="phoneObjects">42</b></div>
+      <div class="phone-detail"><span>Potential threats</span><b id="phoneDetected" class="phone-danger">0</b></div>
+      <div class="phone-detail"><span>Current action</span><b id="phoneAction">Checking app cache</b></div>
+    </div>
+    <div class="phone-card phone-events"><div class="phone-card-title">Recent activity <small>LIVE LOG</small></div><div class="phone-log" id="phoneLog"><div>Initializing diagnostic session...</div></div></div>
+    <div class="phone-footer"><span id="phoneMsg">Attempting to inspect network stream...</span><span class="phone-spinner" aria-hidden="true"></span></div>
+  </div>
+  <div class="phone-home-indicator" aria-hidden="true"></div>
+</section>
+<section id="mobilecrash" aria-label="Simulated phone application error">
+  <div class="crash-phone-underlay" aria-hidden="true"><div class="ghost-brand">NEON✦DASH</div><div class="ghost-sub">SESSION LOST</div></div>
+  <div class="crash-phone-veil" aria-hidden="true"></div>
+  <div class="crash-phone-status" aria-hidden="true"><span id="mobileCrashTime">9:41</span><span>▮▮▮  ◕  ▰</span></div>
+  <div class="mobileerror" role="presentation">
+    <div class="mobileerroricon" aria-hidden="true">✦</div>
+    <strong id="mobileCrashTitle">Neon Dash isn't responding</strong>
+    <p id="mobileCrashDetail">The app stopped working and couldn't recover.</p>
+    <small id="mobileCrashCode">APP_NOT_RESPONDING · 0xC0000005</small>
+    <div class="mobileerrorbottom" id="mobileCrashAction">Closing app…</div>
+  </div>
+  <div class="crash-phone-home" aria-hidden="true"></div>
+</section>
+<section id="crash" aria-label="Simulated Windows application error"><div class="errorwindow"><div class="errorbar">Neon Dash — Application Error</div><div class="errorinner"><div class="erroricon" aria-hidden="true">!</div><div><p><strong>Neon Dash has stopped working.</strong></p><p>The application encountered an unexpected problem and could not recover. The current session will close.</p><code>Exception code: 0xC0000005</code><p style="margin-top:17px">Closing application...</p></div></div></div></section>
+<section id="maccrash" aria-label="Simulated macOS application error"><div class="mac-error-dialog" role="presentation"><div class="mac-error-app-icon" aria-hidden="true">✦</div><div class="mac-error-main"><h2>Neon Dash quit unexpectedly.</h2><p>Click Reopen to open the application again. Click Report to see more detailed information and send a report to Apple.</p><p class="mac-error-meta">Exception Type: EXC_BAD_ACCESS (SIGSEGV)</p><div class="mac-error-buttons" aria-hidden="true"><span>Ignore</span><span>Report…</span><span>Reopen</span></div></div></div></section>
+<div id="blackout" aria-label="Black simulation screen"></div>
+<section id="explain" role="dialog" aria-label="About this effect"><div class="exinner"><h3>It was a simulated crash.</h3><p>Nothing was downloaded or installed, and this webpage never accessed your device or files. All warnings and progress numbers were fictional.</p><button id="restart" type="button">RESTART GAME</button></div></section>
+<script>
+(()=>{'use strict';
+  // Single-file visual simulation: no requests, scanning, downloads, device access,
+  // fullscreen locking, navigation interception, or popups. Users retain browser exits.
+  const $=id=>document.getElementById(id);
+  const c=$('game'), ctx=c.getContext('2d');
+  const W=960,H=540,ship={x:172,y:270};
+  let stage='intro',raf=0,last=0,startAt=0,score=0,items=[],stars=[],timeouts=[],timer=null,damage=0,keys={up:false,down:false};
+  let lagFrame=0,lastLagDraw=-Infinity,lagIdealY=270,lagSampleAt=0,catchupAt=0,catchupFromY=270,gameReady=false;
+  // On narrow/touch devices use a phone-style diagnostic panel instead of desktop windows.
+  const touchUI=matchMedia('(pointer:coarse)').matches || (navigator.maxTouchPoints>0 && matchMedia('(max-width:1100px)').matches);
+  const phoneUI=matchMedia('(max-width:700px)').matches || (touchUI && matchMedia('(max-width:1100px)').matches);
+  document.body.classList.toggle('phone-ui',phoneUI);
+  // Phone crash uses mobile error conventions, never the desktop exception window.
+  const applePhone=/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints>1);
+  document.body.classList.add(applePhone?'phone-os-ios':'phone-os-android');
+  // Desktop macOS gets a different diagnostic shell and native-style error.
+  // iPads that identify as Macintosh have touch points and keep the phone UI.
+  const macDesktop=!phoneUI && /Macintosh|Mac OS X/i.test(navigator.userAgent) &&
+    navigator.maxTouchPoints<=1;
+  document.body.classList.add(macDesktop?'desktop-os-mac':'desktop-os-windows');
+
+  if(applePhone){
+    $('mobileCrashTitle').textContent='Neon Dash Closed Unexpectedly';
+    $('mobileCrashDetail').textContent='The application encountered a problem and could not continue.';
+    $('mobileCrashCode').textContent='APP TERMINATED · PROCESS ERROR';
+    $('mobileCrashAction').textContent='Closing…';
+  }else{
+    $('mobileCrashTitle').textContent='Neon Dash keeps stopping';
+    $('mobileCrashDetail').textContent='The app is not responding and could not be recovered.';
+    $('mobileCrashCode').textContent='APP_NOT_RESPONDING';
+    $('mobileCrashAction').textContent='Closing app…';
+  }
+  document.body.classList.add(touchUI?'touch-ui':'no-touch-ui');
+  $('introInstructions').textContent=touchUI
+    ? 'Collect the gold sparks. Dodge the red asteroids. Press and hold the on-screen ↑ or ↓ buttons to fly.'
+    : 'Collect the gold sparks. Dodge the red asteroids. Use ↑ / ↓ or W / S to fly.';
+  $('gamefoot').textContent=touchUI
+    ? 'HOLD THE ON-SCREEN ↑ / ↓ BUTTONS TO FLY · COLLECT ✦ · AVOID ◆'
+    : '↑ ↓ OR W / S TO FLY · COLLECT ✦ · AVOID ◆';
+  const rand=(a,b)=>a+Math.random()*(b-a),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  function later(f,ms){const id=setTimeout(f,ms);timeouts.push(id);return id}
+  function resetTimers(){timeouts.forEach(clearTimeout);timeouts=[];clearInterval(timer);timer=null}
+  function initStars(){stars=Array.from({length:110},()=>({x:rand(0,W),y:rand(0,H),size:rand(.6,2),speed:rand(40,200),alpha:rand(.2,.8)}))}
+  function background(dt){const gr=ctx.createRadialGradient(600,180,10,480,270,580);gr.addColorStop(0,'#284172');gr.addColorStop(.7,'#0e1735');gr.addColorStop(1,'#080d1f');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);ctx.strokeStyle='#4b64ac1c';for(let x=0;x<W;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}for(const s of stars){if(stage==='game'){s.x-=s.speed*dt;if(s.x<0)s.x=W}ctx.globalAlpha=s.alpha;ctx.fillStyle='#d7fdff';ctx.fillRect(s.x,s.y,s.size*2,s.size)}ctx.globalAlpha=1}
+  function drawShip(){ctx.save();ctx.translate(ship.x,ship.y);ctx.shadowColor='#60f5ee';ctx.shadowBlur=20;ctx.fillStyle='#58fff3';ctx.beginPath();ctx.moveTo(34,0);ctx.lineTo(-21,-20);ctx.lineTo(-10,0);ctx.lineTo(-21,20);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#eaffff';ctx.beginPath();ctx.moveTo(15,0);ctx.lineTo(-14,-11);ctx.lineTo(-9,0);ctx.lineTo(-14,11);ctx.closePath();ctx.fill();ctx.fillStyle='#ff6fc8';ctx.beginPath();ctx.moveTo(-22,-7);ctx.lineTo(-43-rand(0,14),0);ctx.lineTo(-22,7);ctx.fill();ctx.restore()}
+  function renderItems(){for(const it of items){ctx.save();ctx.translate(it.x,it.y);ctx.rotate(it.rot);if(it.good){ctx.shadowColor='#ffe878';ctx.shadowBlur=14;ctx.fillStyle='#ffe37f'}else{ctx.shadowColor='#fd5c73';ctx.shadowBlur=18;ctx.fillStyle='#f85a72'}ctx.beginPath();for(let i=0;i<10;i++){const a=i*Math.PI/5,r=it.good?(i%2?5:15):(i%2?12:20);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.fill();ctx.restore()}}
+  // Integrate held-key/touch input even between 2 FPS renders. The ship moves only
+  // when a low-FPS frame appears, but queued input still determines its destination.
+  function recordLagMotion(now){
+    if(!lagSampleAt){lagSampleAt=now;return}
+    const elapsed=Math.max(0,Math.min(.65,(now-lagSampleAt)/1000));
+    lagIdealY=clamp(lagIdealY+(Number(keys.down)-Number(keys.up))*380*elapsed,30,510);
+    lagSampleAt=now;
+  }
+  function setMotion(axis,pressed){
+    if(keys[axis]===pressed)return;
+    if(stage==='lag'||stage==='catchup')recordLagMotion(performance.now());
+    keys[axis]=pressed;
+  }
+  // V7: Original synthesized game soundtrack, synchronized to the rendered frames.
+  // Audio is created only after the user's Start click; some mobile browsers mute
+  // Web Audio until a physical user gesture. Never play audio on scan/crash/black.
+  let audioContext=null, soundBus=null, engineOsc=null, engineGain=null;
+  let lastGameBeat=0,lastCatchBeat=-Infinity,beatNumber=0;
+  function initSound(){
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)return;
+      if(!audioContext){
+        audioContext=new AC();
+        soundBus=audioContext.createGain();
+        soundBus.gain.value=0.5;
+        soundBus.connect(audioContext.destination);
+        engineOsc=audioContext.createOscillator();
+        engineGain=audioContext.createGain();
+        engineOsc.type='sawtooth';engineOsc.frequency.value=74;
+        engineGain.gain.value=0;
+        engineOsc.connect(engineGain).connect(soundBus);
+        engineOsc.start();
+      }
+      if(audioContext.state==='suspended')audioContext.resume().catch(()=>{});
+      // A fresh playthrough turns on only the soft engine drone.
+      soundBus.gain.setValueAtTime(.48,audioContext.currentTime);
+      engineGain.gain.setValueAtTime(.03,audioContext.currentTime);
+    }catch(_){/* Silent fallback when Web Audio is unavailable. */}
+  }
+  function beep(freq,duration=0.09,volume=0.07,type='square'){
+    if(!audioContext||!soundBus||audioContext.state!=='running')return;
+    try{
+      const t=audioContext.currentTime;
+      const osc=audioContext.createOscillator(),envelope=audioContext.createGain();
+      osc.type=type;osc.frequency.setValueAtTime(freq,t);
+      osc.connect(envelope).connect(soundBus);
+      envelope.gain.setValueAtTime(0.0001,t);
+      envelope.gain.linearRampToValueAtTime(volume,t+.004);
+      envelope.gain.exponentialRampToValueAtTime(.0001,t+duration);
+      osc.start(t);osc.stop(t+duration+.005);
+    }catch(_){}
+  }
+  function gameSoundTick(ts){
+    if(!audioContext||audioContext.state!=='running')return;
+    if(ts-lastGameBeat<153)return;
+    lastGameBeat=ts;
+    const melody=[392,494,587,659,587,494,440,523];
+    beep(melody[beatNumber%melody.length],.105,.07,'triangle');
+    if((beatNumber%4)===0)beep(130.81,.14,.06,'square');
+    beatNumber++;
+    if(engineOsc){engineOsc.frequency.setTargetAtTime(75+(ship.y-270)*.036,audioContext.currentTime,.045)}
+  }
+  function lagSoundFrame(){
+    // Called from the exact same 2 FPS draw branch. Quiet between frozen frames.
+    beep(185+lagFrame*20,.072,.095,'sawtooth');
+  }
+  function catchupSoundTick(ts,q){
+    const spacing=94-q*65; // Accelerates rapidly as visual catch-up progresses.
+    if(ts-lastCatchBeat<spacing)return;
+    lastCatchBeat=ts;
+    beep(310+Math.floor(q*11)*70,.038-q*.012,.075,'triangle');
+  }
+  function muteGameSound(){
+    if(!audioContext||!soundBus)return;
+    try{
+      // Cancel scheduled values and hard-mute within this same JavaScript tick.
+      const now=audioContext.currentTime;
+      soundBus.gain.cancelScheduledValues(now);
+      soundBus.gain.setValueAtTime(0,now);
+      if(engineGain)engineGain.gain.setValueAtTime(0,now);
+    }catch(_){}
+  }
+  function enterLagSound(){
+    if(audioContext&&engineGain){
+      engineGain.gain.setValueAtTime(0,audioContext.currentTime);
+    }
+    // Existing sound envelopes are short (<.15s); mute instantly before 2 FPS ticks.
+    if(soundBus && audioContext){
+      const now=audioContext.currentTime;
+      soundBus.gain.setValueAtTime(0,now);
+      soundBus.gain.setValueAtTime(.48,now+.03);
+    }
+    lastCatchBeat=-Infinity;
+  }
+  function gameLoop(ts){
+    raf=requestAnimationFrame(gameLoop);
+    if(!['game','intro','lag','catchup'].includes(stage))return;
+    if(stage==='lag'){
+      recordLagMotion(ts);
+      if(ts-lastLagDraw<500)return; // Exactly two visible updates per second.
+      lastLagDraw=ts;lagFrame++;
+      lagSoundFrame();
+      // Update toward the real input destination, only as each stalled frame arrives.
+      ship.y=clamp(ship.y+(lagIdealY-ship.y)*.42,30,510);
+      ship.x=172+(lagFrame>=3?(lagFrame%2?9:-7):0);
+      for(const s of stars){s.x-=s.speed*.028;if(s.x<0)s.x=W}
+      for(const it of items){it.x-=13;it.rot+=.06}
+      background(0);renderItems();drawShip();return;
+    }
+    if(stage==='catchup'){
+      recordLagMotion(ts);
+      const q=clamp((ts-catchupAt)/330,0,1);
+      catchupSoundTick(ts,q);
+      const ease=1-Math.pow(1-q,3);
+      // The backlog suddenly plays at high speed; no pixel-corruption transition.
+      ship.y=clamp(catchupFromY+(lagIdealY-catchupFromY)*ease + Math.sin(q*18)*Math.sin(Math.PI*q)*11,30,510);
+      ship.x=172+Math.sin(q*Math.PI)*54-(q>.78?(q-.78)*38:0);
+      for(const s of stars){s.x-=s.speed*.15;if(s.x<0)s.x+=W}
+      for(const it of items){it.x-=35;it.rot+=.23}
+      background(0);renderItems();drawShip();return;
+    }
+    const dt=last?Math.min(.05,(ts-last)/1000):0;last=ts;
+    background(dt);
+    if(stage==='game'){
+      gameSoundTick(ts);
+      ship.y=clamp(ship.y+(Number(keys.down)-Number(keys.up))*380*dt,30,510);
+      if(Math.random()<.06)items.push({x:1000,y:rand(60,480),rot:0,good:Math.random()<.7});
+      for(const it of items){it.x-=310*dt;it.rot+=dt*2;
+        if(Math.hypot(it.x-ship.x,it.y-ship.y)<24){
+          if(it.good){score+=100;$('score').textContent=String(score).padStart(4,'0')}
+          else{damage++;$('shields').textContent='♥ '.repeat(Math.max(0,3-damage))+'♡ '.repeat(Math.min(3,damage))}it.x=-100;
+        }
+      }items=items.filter(x=>x.x>-50);
+    }
+    renderItems();drawShip();
+    if(stage==='game'&&performance.now()-startAt>=1000)beginLag();
+  }
+  function freezeSimulation(){
+    // This affects only content in this webpage. No attempts to lock the
+    // keyboard, OS navigation, browser shortcuts, or native fullscreen exits.
+    document.documentElement.classList.add('simulated-freeze');
+    $('gamepage').inert=true;
+  }
+  function restoreSimulation(){
+    document.documentElement.classList.remove('simulated-freeze');
+    $('gamepage').inert=false;
+  }
+  function start(){
+    resetTimers();restoreSimulation();initSound();lastGameBeat=-Infinity;beatNumber=0;stage='game';$('intro').style.display='none';
+    for(const id of ['freeze','artifact','scan','mobilescan','crash','mobilecrash','maccrash','blackout','explain'])$(id).classList.remove('active');
+    $('gamepage').style.pointerEvents='';document.querySelector('meta[name="theme-color"]').content='#080e20';
+    ship.x=172;ship.y=270;score=0;damage=0;items=[];lagFrame=0;lastLagDraw=-Infinity;lagIdealY=270;lagSampleAt=0;keys.up=false;keys.down=false;
+    $('score').textContent='0000';$('shields').textContent='♥ ♥ ♥';$('clock').textContent='01';
+    startAt=performance.now();last=0;
+  }
+  function beginLag(){
+    if(stage!=='game')return;
+    stage='lag';enterLagSound();$('clock').textContent='00';
+    // Retain held input and keep on-screen touch controls active during the stall.
+    $('freeze').classList.add('active');
+    lagIdealY=ship.y;lagSampleAt=performance.now();
+    lagFrame=0;lastLagDraw=-Infinity;
+    later(beginCatchup,2100);
+  }
+  function beginCatchup(){
+    if(stage!=='lag')return;
+    recordLagMotion(performance.now());
+    stage='catchup';catchupAt=performance.now();catchupFromY=ship.y;
+    later(()=>{
+      if(stage!=='catchup')return;
+      stage='gap';$('freeze').classList.remove('active');
+      muteGameSound();
+      freezeSimulation();$('gamepage').style.pointerEvents='none';$('blackout').classList.add('active');
+      document.querySelector('meta[name="theme-color"]').content='#000000';
+      later(startScan,200);
+    },330);
+  }
+  const incidents=[
+    ['[INFO] Starting recovery scan after renderer fault','ok'],
+    ['[INFO] Enumerating queued network resources',''],
+    ['[WARN] Incoming object without publisher signature','warn'],
+    ['[INFO] GET /bundle/cache_helper_64.dat 200 (2064179 bytes)',''],
+    ['[ALERT] Heuristic match: Trojan.Agent / netbridge_driver.tmp','error'],
+    ['[WARN] Incoming stream continues despite failed validation','warn'],
+    ['[INFO] TCP 198.51.100.42:443  ESTABLISHED',''],
+    ['[ALERT] Untrusted payload header detected','error'],
+    ['[INFO] Transfer resumed after checksum retry',''],
+    ['[ALERT] Backdoor signature in svchost_update_x86.bin','error'],
+    ['[WARN] Quarantine request timed out (code 0x800705B4)','warn'],
+    ['[INFO] Receive buffer: 0x0001FA0024 / 16384 bytes',''],
+    ['[ALERT] Trojan.Downloader / cfg_sync_0221.dll','error'],
+    ['[WARN] Attempting to terminate unverified stream','warn'],
+    ['[ERROR] Worker not responding; watchdog timed out','error'],
+    ['[ERROR] Memory access violation 0xC0000005','error'],
+    ['[FATAL] Diagnostic session unresponsive','error']
+  ];
+  function startScan(){if(stage!=='gap')return;stage='scan';$('blackout').classList.remove('active');
+    $('gamepage').style.pointerEvents='none';$('scan').classList.add('active');$('mobilescan').classList.add('active');
+    document.querySelector('meta[name="theme-color"]').content=phoneUI?'#f1f2f5':'#ececec';
+    $('activity').replaceChildren();$('phoneLog').replaceChildren();$('state').textContent='Scanning active network streams...';
+    const scanStart=performance.now();let logs=0;
+    const SCAN_DURATION=10.2, SCAN_SPEED=17/SCAN_DURATION; // 3/5 of V4 duration
+    const progressSteps=[[0,0],[.8,3],[1.8,9],[3,12],[4.3,17],[5.5,18],[6.5,22],[7.4,31],[8.4,35],[9.7,37],[11,46],[12,53],[13.5,67],[14.5,71],[15.5,73],[16.5,86]];
+    function frame(){if(stage!=='scan')return;const t=(performance.now()-scanStart)/1000,u=t*SCAN_SPEED;let p=86;for(let i=1;i<progressSteps.length;i++)if(u<=progressSteps[i][0]){const a=progressSteps[i-1],b=progressSteps[i];p=a[1]+(b[1]-a[1])*(u-a[0])/(b[0]-a[0]);break}
+      const mb=(87.4*p/100),rate=(u>5.4&&u<6.5||u>9.5&&u<10.4)?0:Math.max(.02,5.2+2.8*Math.sin(u*2.1)+Math.random()*2.1);
+      const found=Math.min(14,Math.floor(u*.75));$('now').textContent=new Date().toLocaleTimeString('en-US',{hour12:false});$('scanned').textContent=String(42+Math.floor(u*218+Math.random()*7)).padStart(5,'0');$('detected').textContent=String(found);$('received').textContent=mb.toFixed(1)+' MB';$('rate').textContent=(rate*1024).toFixed(0)+' KB/s';$('percent').textContent=Math.floor(p)+'%';$('progress').style.width=p.toFixed(1)+'%';$('transfer').textContent=mb.toFixed(1)+' of 87.4 MB';$('eta').textContent='Remaining: '+Math.max(0,Math.ceil(SCAN_DURATION-t))+' sec';$('threads').textContent=String(4+Math.min(5,Math.floor(u/3)));$('blocked').textContent=String(Math.floor(found/4));$('filename').textContent=['cache_helper_64.dat','netbridge_driver.tmp','svchost_update_x86.bin','cfg_sync_0221.dll','service_helper_27.tmp','remote_exec_client.bin'][Math.min(5,Math.floor(u/2.7))];$('stage').textContent=u>13?'Finalizing scan results...':u>5?'Inspecting incoming resources...':'Checking network streams...';$('session').textContent=u>14?'Unresponsive':rate<.2?'Retrying...':'Connected';$('note').textContent=u>13?'Unable to stop receive worker; response timeout':rate<.2?'Transfer interrupted. Retrying...':'Incoming transfer stream active ('+rate.toFixed(2)+' MB/s)';$('note2').textContent=u>13?'Process did not respond to terminate request.':'Application process recovery is pending.';
+      // Same fictional telemetry in a separate, touch-sized mobile diagnostic view.
+      if(phoneUI){
+        $('phoneNow').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:false});
+        $('phonePct').textContent=Math.floor(p)+'%';$('phoneProgress').style.width=p.toFixed(1)+'%';
+        $('phoneReceived').textContent=mb.toFixed(1)+' / 87.4 MB';$('phoneRate').textContent=(rate*1024).toFixed(0)+' KB/s';
+        $('phoneCount').textContent=found+' objects flagged';$('phoneDetected').textContent=found;
+        $('phoneObjects').textContent=String(42+Math.floor(u*218));$('phoneFilename').textContent='Inspecting: '+$('filename').textContent;
+        $('phoneConn').textContent=u>13?'Not responding':rate<.2?'Retrying':'Active';
+        $('phoneAction').textContent=u>13?'Stopping process':u>5?'Inspecting transfer':'Verifying app cache';
+        $('phoneMsg').textContent=u>13?'Unable to stop background process.':rate<.2?'Connection lost. Attempting recovery...':'Background data transfer still in progress';
+      }
+      for(let i=0;i<6;i++){const el=$('f'+i);const threshold=[2,4,6.2,9,11.5,14][i];if(u<threshold){el.textContent='Waiting';el.className='muted'}else if(u<threshold+1.0){el.textContent='Inspecting...';el.className='pending'}else{el.textContent=i===0||i===5?'Unknown':'Threat detected';el.className='problem'}}
+      const next=Math.min(incidents.length,Math.floor(u/.96)+1);while(logs<next){const [label,cls]=incidents[logs];const row=document.createElement('div');row.className=cls;row.textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+'  '+label;$('activity').append(row);while($('activity').children.length>9)$('activity').firstChild.remove();
+        if(phoneUI){const mob=document.createElement('div');mob.className=cls;mob.textContent=label.replace(/^\[(INFO|ALERT|WARN|ERROR|FATAL)\] /,'');$('phoneLog').append(mob);while($('phoneLog').children.length>5)$('phoneLog').firstChild.remove()}
+        logs++}$('eventcount').textContent=logs+' entries';
+      if(t>=SCAN_DURATION){clearInterval(timer);timer=null;showCrash()}
+    }
+    frame();timer=setInterval(frame,160);
+  }
+  function showCrash(){if(stage!=='scan')return;stage='crash';
+    $('scan').classList.remove('active');$('mobilescan').classList.remove('active');
+    if(phoneUI){$('mobilecrash').classList.add('active');}
+    else if(macDesktop){$('maccrash').classList.add('active');}
+    else{$('crash').classList.add('active');}
+    if(phoneUI){$('mobileCrashTime').textContent=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:false});}
+    document.querySelector('meta[name="theme-color"]').content=phoneUI?'#141924':'#c9c9c9';later(blackOut,2450);
+  }
+  function blackOut(){if(stage!=='crash')return;stage='black';
+    $('crash').classList.remove('active');$('mobilecrash').classList.remove('active');$('maccrash').classList.remove('active');
+    $('blackout').classList.add('active');document.querySelector('meta[name="theme-color"]').content='#000000';
+  }
+  function showExplain(){if(stage==='intro'||stage==='explain')return;stage='explain';muteGameSound();resetTimers();restoreSimulation();$('explain').classList.add('active')}
+  function restart(){muteGameSound();resetTimers();restoreSimulation();stage='intro';gameReady=false;
+    for(const id of ['explain','blackout','crash','mobilecrash','maccrash','scan','mobilescan','artifact','freeze'])$(id).classList.remove('active');
+    $('gamepage').style.pointerEvents='';$('intro').style.display='flex';$('clock').textContent='01';
+    $('start').textContent='⛶ ENTER FULLSCREEN';$('fullscreenTip').textContent='Fullscreen arcade mode recommended';
+    document.querySelector('meta[name="theme-color"]').content='#080e20';
+  }
+  const supportsFullscreen=!!(document.documentElement.requestFullscreen && document.fullscreenEnabled);
+  async function startGate(){
+    if(stage!=='intro')return;
+    if(supportsFullscreen && !document.fullscreenElement){
+      try{
+        await document.documentElement.requestFullscreen({navigationUI:'hide'});
+        gameReady=true;$('start').textContent='▶ START GAME';
+        $('fullscreenTip').textContent='Fullscreen enabled · Press Start to play';
+      }catch(e){
+        $('fullscreenTip').textContent='Fullscreen not available. Tap again or use your browser’s fullscreen option.';
+      }
+      return;
+    }
+    if(!supportsFullscreen && !gameReady){
+      gameReady=true;$('start').textContent='▶ START GAME';
+      $('fullscreenTip').textContent='Fullscreen isn’t supported here. Try Add to Home Screen for an immersive view.';
+      return;
+    }
+    if(supportsFullscreen && !document.fullscreenElement)return;
+    start();
+  }
+  document.addEventListener('fullscreenchange',()=>{
+    // Native Escape/swipe/browser controls always win. Never auto-reenter fullscreen.
+    if(stage==='intro' && supportsFullscreen && !document.fullscreenElement){
+      gameReady=false;$('start').textContent='⛶ ENTER FULLSCREEN';
+      $('fullscreenTip').textContent='Fullscreen exited · Enter fullscreen to start';
+    }
+  });
+  $('start').addEventListener('click',startGate);$('restart').addEventListener('click',restart);
+  window.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&stage!=='intro'){showExplain();return}
+    if(stage==='intro'&&(e.key===' '||e.key==='Enter')){e.preventDefault();startGate();return}
+    if(['gap','scan','crash','black'].includes(stage)){
+      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','PageUp','PageDown',' '].includes(e.key))e.preventDefault();
+      return;
+    }
+    if(!['game','lag','catchup'].includes(stage))return;
+    if(['ArrowUp','ArrowDown','w','s','W','S'].includes(e.key))e.preventDefault();
+    if(e.key==='ArrowUp'||e.key.toLowerCase()==='w')setMotion('up',true);
+    if(e.key==='ArrowDown'||e.key.toLowerCase()==='s')setMotion('down',true);
+  });
+  window.addEventListener('keyup',e=>{if(e.key==='ArrowUp'||e.key.toLowerCase()==='w')setMotion('up',false);if(e.key==='ArrowDown'||e.key.toLowerCase()==='s')setMotion('down',false)});
+  window.addEventListener('blur',()=>{setMotion('up',false);setMotion('down',false)});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)muteGameSound()});
+  for(const [id,axis] of [['up','up'],['down','down']]){
+    const el=$(id);
+    el.addEventListener('pointerdown',e=>{if(!['game','lag','catchup'].includes(stage))return;e.preventDefault();setMotion(axis,true);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+    for(const type of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(type,()=>setMotion(axis,false));
+  }
+  // Long press anywhere on the simulated scanner/crash/blackout to safely explain/exit.
+  // This never overrides device buttons, browser controls or fullscreen exit gestures.
+  let hold=null;
+  for(const id of ['blackout','mobilescan','scan','mobilecrash','crash','maccrash']){
+    const el=$(id);el.addEventListener('pointerdown',()=>{
+      if(!['scan','crash','black'].includes(stage))return;
+      hold=setTimeout(showExplain,3000);
+    });
+    for(const typ of ['pointerup','pointercancel','pointerleave'])el.addEventListener(typ,()=>{
+      if(hold){clearTimeout(hold);hold=null}
+    });
+  }
+  initStars();raf=requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>
